@@ -1,0 +1,13 @@
+{
+  "name": "food-data-packs",
+  "private": true,
+  "type": "module",
+  "description": "Daily offline food product databases (SQLite, one per country) built from the Open Food Facts export",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "node --no-warnings build.mjs",
+    "release": "node --no-warnings release.mjs"
+  }
+}
