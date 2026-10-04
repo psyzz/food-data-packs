@@ -4,10 +4,11 @@
 //   id                    = code
 //   nutrition_grades      = nutriscore_grade
 //   image_front_url       <- front_image ("<lang>.<rev>") and the code
+//   image_ingredients_url <- ingredients_image, image_nutrition_url <- nutrition_image
 //   <nutrient>_serving    <- <nutrient>_100g * serving_quantity / 100
 //   energy_serving        <- energy_value * serving_quantity / 100 (kJ only)
-// Fields that only make sense online (alternatives, other images, knowledge panels)
-// are left out: the client refetches the full product when the network is back.
+// Fields that only make sense online (knowledge panels, packaging, contributors...)
+// are left out.
 
 export const LOCALES = ["fr", "en", "es", "it", "de"];
 
@@ -155,20 +156,21 @@ const pickNutriscoreData = (product, foodLikeCategories) => {
 	return compact(picked);
 };
 
-// Front image as "<lang>.<rev>" (a few bytes instead of a 90-byte URL).
-const pickFrontImage = (product) => {
-	const selected = product.images?.selected?.front;
+// Selected image ("front", "ingredients", "nutrition") as "<lang>.<rev>": a few bytes
+// instead of a 90-byte URL.
+const pickSelectedImage = (product, type) => {
+	const selected = product.images?.selected?.[type];
 	const languages = selected
 		? Object.keys(selected).filter((lang) => selected[lang]?.rev)
 		: Object.keys(product.images || {})
-				.filter((key) => key.startsWith("front_") && product.images[key]?.rev)
-				.map((key) => key.slice("front_".length));
+				.filter((key) => key.startsWith(`${type}_`) && product.images[key]?.rev)
+				.map((key) => key.slice(type.length + 1));
 	if (languages.length === 0) {
 		return undefined;
 	}
 	// Same choice as the world API: English first, then the product language.
 	const lang = languages.includes("en") ? "en" : languages.includes(product.lang) ? product.lang : languages[0];
-	const rev = selected ? selected[lang].rev : product.images[`front_${lang}`].rev;
+	const rev = selected ? selected[lang].rev : product.images[`${type}_${lang}`].rev;
 	return `${lang}.${rev}`;
 };
 
@@ -188,7 +190,11 @@ export const pickProduct = (product) => {
 		quantity: product.quantity,
 		serving_size: product.serving_size,
 		serving_quantity: product.serving_size ? toNumber(product.serving_quantity) : undefined,
-		front_image: pickFrontImage(product),
+		front_image: pickSelectedImage(product, "front"),
+		ingredients_image: pickSelectedImage(product, "ingredients"),
+		nutrition_image: pickSelectedImage(product, "nutrition"),
+		// Category the alternatives are searched in.
+		compared_to_category: product.compared_to_category,
 		nutriscore_grade: product.nutriscore_grade,
 		nutriscore_score: toNumber(product.nutriscore_score),
 		nutriscore_data: pickNutriscoreData(product, foodLikeCategories),

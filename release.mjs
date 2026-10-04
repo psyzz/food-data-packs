@@ -76,9 +76,10 @@ for (const sqliteFile of readdirSync(DIST).filter((name) => name.endsWith(".sqli
 	const meta = readMeta(sqlitePath);
 	manifest.schema_version = Number(meta.schema_version);
 	const previous = previousManifest.countries[country];
-	let deltas = [];
+	const sameSchema = previous && previous.schema_version === Number(meta.schema_version);
+	let deltas = sameSchema ? previous.deltas : [];
 
-	if (previous && previous.schema_version === Number(meta.schema_version)) {
+	if (sameSchema && previous.built_at !== meta.built_at) {
 		gh("release", "download", TAG, "--repo", REPO, "--pattern", previous.full.file, "--dir", `${WORK}/previous`);
 		execFileSync("unzip", ["-o", "-q", `${WORK}/previous/${previous.full.file}`, "-d", `${WORK}/previous`]);
 		const deltaPath = `${WORK}/${country}-${stampOf(meta.built_at)}.delta.sqlite`;
@@ -114,7 +115,12 @@ for (const path of uploads) {
 }
 writeFileSync(`${WORK}/manifest.json`, JSON.stringify(manifest, null, "\t"));
 gh("release", "upload", TAG, `${WORK}/manifest.json`, "--clobber", "--repo", REPO);
-for (const file of removals) {
-	gh("release", "delete-asset", TAG, file, "--yes", "--repo", REPO);
+// A file already gone (manual cleanup, rerun) must not fail the nightly build.
+for (const file of new Set(removals)) {
+	try {
+		gh("release", "delete-asset", TAG, file, "--yes", "--repo", REPO);
+	} catch {
+		console.log(`${file} was already removed.`);
+	}
 }
 console.log(`Published ${uploads.length} files, removed ${removals.length} expired files.`);
