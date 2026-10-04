@@ -1,6 +1,6 @@
 // Publishes the databases built in dist/ to a rolling GitHub release, with one delta
 // per country since the previous publication. Needs the gh CLI and the zip/unzip commands.
-// Usage: node release.mjs [--dist dist] [--tag db] [--keep-deltas 30]
+// Usage: node release.mjs [--dist dist] [--tag db] [--keep-deltas 14]
 //
 // Release assets:
 //   manifest.json                  what clients read first
@@ -22,7 +22,8 @@ const args = Object.fromEntries(
 );
 const DIST = args.dist || "dist";
 const TAG = args.tag || "db";
-const KEEP_DELTAS = Number(args["keep-deltas"] || 30);
+// GitHub caps a release at 1000 assets: about 50 packs x (full + deltas) must fit.
+const KEEP_DELTAS = Number(args["keep-deltas"] || 14);
 const REPO = process.env.GITHUB_REPOSITORY || execFileSync("gh", ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]).toString().trim();
 const BASE_URL = `https://github.com/${REPO}/releases/download/${TAG}`;
 const WORK = `${DIST}/release`;
@@ -107,6 +108,15 @@ for (const sqliteFile of readdirSync(DIST).filter((name) => name.endsWith(".sqli
 	};
 	console.log(`${country}: ${meta.products} products, full ${full.size} bytes`);
 }
+
+// A pack that is no longer built (fell below the minimum size) leaves the release.
+Object.entries(previousManifest.countries)
+	.filter(([country]) => !manifest.countries[country])
+	.forEach(([country, previous]) => {
+		removals.push(previous.full.file, ...previous.deltas.map((delta) => delta.file));
+		if (previous.retired_full) removals.push(previous.retired_full);
+		console.log(`${country}: no longer built, removed from the release`);
+	});
 
 // Full databases and deltas first, the manifest last: a client never sees a
 // manifest that points to files not uploaded yet.

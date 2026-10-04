@@ -5,7 +5,7 @@ Daily offline packs of food products, one SQLite database per country, built fro
 
 | Script | Role |
 | --- | --- |
-| `build.mjs` | Streams the Open Food Facts JSONL export and writes `dist/<country>.sqlite` |
+| `build.mjs` | Streams the Open Food Facts JSONL export and writes `dist/<country>.sqlite` for every candidate country with at least `MIN_PRODUCTS` products (3000 by default), and `dist/world.sqlite` for all other countries (smaller candidates included) |
 | `pick.mjs` | Keeps the few fields a client needs per product |
 | `encode.mjs` | Compact row format (schema 1) |
 | `diff.mjs` | Changes between two builds: products to upsert, codes to delete |
@@ -19,7 +19,7 @@ Everything is attached to the rolling `db` release:
 `https://github.com/<owner>/food-data-packs/releases/download/db/<file>`
 
 - `manifest.json`: per country, the current build (`built_at`, `products`, `sqlite_size`),
-  the full database (`full.file`, `size`, `sha256`) and the deltas of the last 30 builds
+  the full database (`full.file`, `size`, `sha256`) and the deltas of the last 14 builds
   (`from`, `to`, `file`, `size`, `sha256`, `upserts`, `deletes`).
 - `<country>-<stamp>.zip`: full database of one build.
 - `<country>-<stamp>.delta.zip`: changes from the previous build to build `<stamp>`.
